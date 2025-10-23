@@ -515,8 +515,14 @@ def main():
         if st.session_state["activity"]:
             df_log = pd.DataFrame(st.session_state["activity"])  # time, msg
             st.dataframe(df_log, use_container_width=True)
-            md = df_log.to_markdown(index=False)
-            st.download_button("Export activity (md)", md, file_name="activity.md", mime="text/markdown")
+            try:
+                md = df_log.to_markdown(index=False)
+                st.download_button("Export activity (md)", md, file_name="activity.md", mime="text/markdown")
+            except ImportError:
+                # Fallback to CSV if tabulate is not available
+                csv = df_log.to_csv(index=False)
+                st.download_button("Export activity (CSV)", csv, file_name="activity.csv", mime="text/csv")
+                st.info("Markdown export requires 'tabulate' package. Using CSV format instead.")
 
 
 if __name__ == "__main__":
