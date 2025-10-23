@@ -454,6 +454,109 @@ def main():
                 else:
                     st.warning("No iteration data available for HITS")
 
+        # Calculation Steps
+        with st.expander("Calculation Steps", expanded=False):
+            if st.session_state["iterations"] and idx < len(st.session_state["iterations"]):
+                it = st.session_state["iterations"][idx]
+                nodes = st.session_state.get("nodes_order", list(st.session_state["graph"].nodes()))
+                G = st.session_state["graph"]
+                
+                if st.session_state["algo"] == "PageRank":
+                    st.subheader("PageRank Calculation Steps")
+                    st.write(f"**Iteration {it['k']}:**")
+                    
+                    # Show the PageRank formula
+                    st.latex(r"""
+                    \text{PageRank}(v) = \frac{1-d}{N} + d \sum_{u \in M(v)} \frac{\text{PageRank}(u)}{L(u)}
+                    """)
+                    st.write("Where:")
+                    st.write("- $d$ = damping factor (teleportation probability)")
+                    st.write("- $N$ = total number of nodes")
+                    st.write("- $M(v)$ = nodes that link to $v$")
+                    st.write("- $L(u)$ = number of outbound links from node $u$")
+                    
+                    # Show current values
+                    st.write("**Current Values:**")
+                    vec = it["vector"]
+                    df_steps = pd.DataFrame({
+                        "Node": nodes,
+                        "PageRank": [f"{val:.6f}" for val in vec],
+                        "In-degree": [G.in_degree(node) for node in nodes],
+                        "Out-degree": [G.out_degree(node) for node in nodes]
+                    }).sort_values("PageRank", ascending=False)
+                    st.dataframe(df_steps, use_container_width=True)
+                    
+                    # Show transition matrix
+                    st.write("**Transition Matrix (P):**")
+                    node_index = {node: i for i, node in enumerate(nodes)}
+                    P = to_transition_matrix(G, node_index).toarray()
+                    st.dataframe(pd.DataFrame(P, index=nodes, columns=nodes), use_container_width=True)
+                    
+                    # Show dangling nodes
+                    row_sums = P.sum(axis=1)
+                    dangling_nodes = [nodes[i] for i, sum_val in enumerate(row_sums) if sum_val == 0]
+                    if dangling_nodes:
+                        st.write(f"**Dangling nodes:** {', '.join(dangling_nodes)} (redistributed uniformly)")
+                    
+                    # Show convergence info
+                    st.write(f"**Convergence:** Δ = {it['delta_l1']:.6e}")
+                    if it['delta_l1'] < st.session_state["params"]["tol"]:
+                        st.success("✅ Converged!")
+                    else:
+                        st.info("🔄 Still converging...")
+                        
+                else:  # HITS
+                    st.subheader("HITS Calculation Steps")
+                    st.write(f"**Iteration {it['k']}:**")
+                    
+                    # Show the HITS formulas
+                    st.latex(r"""
+                    \begin{align}
+                    a(v) &= \sum_{u \in M(v)} h(u) \\
+                    h(v) &= \sum_{u \in L(v)} a(u)
+                    \end{align}
+                    """)
+                    st.write("Where:")
+                    st.write("- $a(v)$ = authority score of node $v$")
+                    st.write("- $h(v)$ = hub score of node $v$")
+                    st.write("- $M(v)$ = nodes that link to $v$")
+                    st.write("- $L(v)$ = nodes that $v$ links to")
+                    
+                    # Show current values
+                    st.write("**Current Values:**")
+                    a = it["a"]
+                    h = it["h"]
+                    df_steps = pd.DataFrame({
+                        "Node": nodes,
+                        "Authority": [f"{val:.6f}" for val in a],
+                        "Hub": [f"{val:.6f}" for val in h],
+                        "In-degree": [G.in_degree(node) for node in nodes],
+                        "Out-degree": [G.out_degree(node) for node in nodes]
+                    }).sort_values("Authority", ascending=False)
+                    st.dataframe(df_steps, use_container_width=True)
+                    
+                    # Show adjacency matrix
+                    st.write("**Adjacency Matrix (A):**")
+                    A = nx.to_numpy_array(G, nodelist=nodes, dtype=float)
+                    st.dataframe(pd.DataFrame(A, index=nodes, columns=nodes), use_container_width=True)
+                    
+                    # Show normalization info
+                    norm_type = st.session_state["params"]["hits_norm"]
+                    st.write(f"**Normalization:** {norm_type.upper()}")
+                    if norm_type == "l1":
+                        st.write("Authority sum:", f"{np.sum(a):.6f}")
+                        st.write("Hub sum:", f"{np.sum(h):.6f}")
+                    else:  # l2
+                        st.write("Authority L2 norm:", f"{np.linalg.norm(a):.6f}")
+                        st.write("Hub L2 norm:", f"{np.linalg.norm(h):.6f}")
+                    
+                    # Show convergence info
+                    st.write(f"**Convergence:** Δ = {it['delta_l1']:.6e}")
+                    if it['delta_l1'] < st.session_state["params"]["tol"]:
+                        st.success("✅ Converged!")
+                    else:
+                        st.info("🔄 Still converging...")
+
         # Matrices
         with st.expander("Matrices", expanded=False):
             G = st.session_state["graph"]
