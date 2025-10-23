@@ -421,6 +421,9 @@ def main():
             st.subheader("Iterations")
             maxk = len(st.session_state["iterations"]) - 1
             idx = st.slider("Iteration", 0, maxk, value=st.session_state["iter_index"], key="iter_index")
+            
+            # Update session state with the slider value
+            st.session_state["iter_index"] = idx
 
             if idx < len(st.session_state["iterations"]):
                 it = st.session_state["iterations"][idx]
